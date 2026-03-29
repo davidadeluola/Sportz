@@ -9,7 +9,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js --watch src"
+    "dev": "nodemon src/app.js --watch src",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:run": "node src/index.js"
   },
   "dependencies": {
     "@types/ws": "^8.18.1",
@@ -17,8 +20,13 @@
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "nodemon": "^3.1.14",
+    "pg": "^8.20.0",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
   }
 }

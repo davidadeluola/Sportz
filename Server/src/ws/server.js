@@ -27,8 +27,6 @@ export function attachWebsocketHandlers(server) {
 
   ws.on("connection", (socket) => {
     const clientId = randomUUID();
-    socket.isAlive = true;
-
     console.log("New client connected to WebSocket: ", clientId);
 
     sendJSON(socket, {
@@ -45,11 +43,6 @@ export function attachWebsocketHandlers(server) {
       },
     });
 
-    socket.on("pong", () => {
-      socket.isAlive = true;
-      console.log(`Pong received from client ${clientId}`);
-    });
-
     // socket.on("message", (message) => {
     //   console.log(`Received message from client ${clientId}:`, message.toString());
     //   // Handle incoming messages from clients if needed
@@ -57,28 +50,9 @@ export function attachWebsocketHandlers(server) {
 
     socket.on("error", console.error);
 
-    socket.on("close", () => {
-      console.log(`Client disconnected: ${clientId}`);
-    });
-  });
-
-  // Heartbeat ping interval: send ping every 30 seconds to all connected clients
-  const heartbeatInterval = setInterval(() => {
-    ws.clients.forEach((socket) => {
-      if (socket.isAlive === false) {
-        // Client did not respond to ping, terminate connection
-        console.log("Terminating dead connection due to no pong response");
-        return socket.terminate();
-      }
-
-      // Mark as not alive and send ping
-      socket.isAlive = false;
-      socket.ping();
-    });
-  }, 30000); // 30 seconds
-
-  ws.on("close", () => {
-    clearInterval(heartbeatInterval);
+    // socket.on("close", () => {
+    //   console.log(`Client disconnected: ${clientId}`);
+    // });
   });
 
   function broadcastMatchUpdate(match) {

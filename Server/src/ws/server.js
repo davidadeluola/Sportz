@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
+import { arcjetWsSecurityMiddleware } from "../middleware/arcjet-ws.middleware.js";
 
 function sendJSON(socket, payload) {
   if (socket.readyState !== WebSocket.OPEN) {
@@ -25,7 +26,15 @@ export function attachWebsocketHandlers(server) {
     maxPayload: 1024 * 1024,
   });
 
-  ws.on("connection", (socket) => {
+  ws.on("connection", async (socket) => {
+    // Apply WebSocket Arcjet security middleware
+    const isAllowed = await arcjetWsSecurityMiddleware(socket);
+    if (!isAllowed) {
+      console.warn("WebSocket connection denied by Arcjet security middleware");
+      socket.close(1008, "Forbidden: Access Denied");
+      return;
+    }
+
     const clientId = randomUUID();
     socket.isAlive = true;
 

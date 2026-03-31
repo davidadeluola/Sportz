@@ -1,12 +1,17 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createServer } from "node:http";
 import matchRouter from "./routes/matches.js";
+import { attachWebsocketHandlers } from "./ws/server.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// TODO: Move these to config file
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +24,14 @@ app.get("/", (_req, res) => {
 
 app.use("/api/v1/matches", matchRouter);
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const server = createServer(app);
+
+const { broadcastMatchUpdate } = attachWebsocketHandlers(server);
+app.locals.broadcastMatchUpdate = broadcastMatchUpdate;
+
+server.listen(PORT, HOST, () => {
+  const baseUrl =
+    HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+  console.log(`Server running on ${baseUrl}`);
+  console.log(`WebSocket server running on ws://${HOST}:${PORT}/ws`);
 });

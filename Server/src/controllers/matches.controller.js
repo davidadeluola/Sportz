@@ -7,7 +7,6 @@ import MatchServices from "../services/matches.services.js";
 const matchServices = new MatchServices();
 
 class MatchController {
-
   listMatches = async (req, res) => {
     const parsedQuery = listMatchesQuerySchema.safeParse(req.query);
     if (!parsedQuery.success) {
@@ -44,7 +43,11 @@ class MatchController {
 
     try {
       const event = await matchServices.createMatch(parsedBody.data);
-          return res
+      if (res.app.locals.broadcastMatchUpdate) {
+        res.app.locals.broadcastMatchUpdate(event);
+      }
+
+      return res
         .status(201)
         .json({ message: "Match created successfully", matchData: event });
     } catch (error) {

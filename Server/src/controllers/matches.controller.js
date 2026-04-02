@@ -11,8 +11,11 @@ class MatchController {
     const parsedQuery = listMatchesQuerySchema.safeParse(req.query);
     if (!parsedQuery.success) {
       return res.status(400).json({
-        errors: "Invalid query parameters",
-        details: JSON.stringify(parsedQuery.error),
+        payload: {
+          success: false,
+          error: "Invalid query parameters",
+          data: parsedQuery.error.issues,
+        },
       });
     }
 
@@ -21,13 +24,19 @@ class MatchController {
     try {
       const matchListData = await matchServices.listMatches(limit);
       return res.status(200).json({
-        message: "Matches List Retrieved Successfully",
-        data: matchListData,
+        payload: {
+          success: true,
+          error: null,
+          data: matchListData,
+        },
       });
     } catch (error) {
       return res.status(500).json({
-        error: "Failed to list matches",
-        details: JSON.stringify(error),
+        payload: {
+          success: false,
+          error: "Failed to list matches",
+          data: error?.message || "Unknown error",
+        },
       });
     }
   };
@@ -36,8 +45,11 @@ class MatchController {
     const parsedBody = createMatchSchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({
-        errors: "Invalid payload",
-        details: JSON.stringify(parsedBody.error),
+        payload: {
+          success: false,
+          error: "Invalid payload",
+          data: parsedBody.error.issues,
+        },
       });
     }
 
@@ -49,11 +61,20 @@ class MatchController {
 
       return res
         .status(201)
-        .json({ message: "Match created successfully", matchData: event });
+        .json({
+          payload: {
+            success: true,
+            error: null,
+            data: event,
+          },
+        });
     } catch (error) {
       return res.status(500).json({
-        error: "Internal Server Error",
-        details: JSON.stringify(error),
+        payload: {
+          success: false,
+          error: "Internal server error",
+          data: error?.message || "Unknown error",
+        },
       });
     }
   };

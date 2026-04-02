@@ -15,20 +15,22 @@ export async function arcjetWsSecurityMiddleware(socket) {
   }
 
   try {
+    const socketIp =
+      socket?._socket?.remoteAddress || socket?.remoteAddress || "127.0.0.1";
+
     // Create a minimal request-like object for Arcjet validation
     const req = {
       url: "/ws",
       method: "GET",
-      headers: socket.protocol ? { protocol: socket.protocol } : {},
+      ip: socketIp,
+      headers: {
+        "user-agent": "SportzWebSocketClient/1.0",
+        ...(socket.protocol ? { protocol: socket.protocol } : {}),
+      },
     };
 
     const wsResponse = await wsArk.protect(req);
     if (wsResponse.isDenied()) {
-      const reason = wsResponse.reason.isRateLimit() ? 1013 : 1008; // 1013: Try Again Later, 1008: Policy Violation
-      const code = wsResponse.reason.isRateLimit()
-        ? "rate limit exceeded"
-        : "access denied";
-
       const reasonMsg = wsResponse.reason.isRateLimit()
         ? "WebSocket connection rate limited"
         : "WebSocket connection denied: Access Denied";

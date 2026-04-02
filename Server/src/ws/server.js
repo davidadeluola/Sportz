@@ -2,6 +2,129 @@ import { randomUUID } from "node:crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { arcjetWsSecurityMiddleware } from "../middleware/arcjet-ws.middleware.js";
 
+const matchSub = new Map(); // matchId -> Set of clientIds subscribed to updates for that match
+
+function subscribeMatchId(matchId, socket) {
+  if (!matchSub.has(matchId)) {
+    matchSub.set(matchId, new Set());
+  }
+
+  matchSub.get(matchId).add(socket);
+}
+
+function unSubscribeMatchId(matchId, socket) {
+  const subs = matchSub.get(matchId);
+  if (!subs) {
+    return;
+  }
+
+  subs.delete(socket);
+
+  if (subs.size === 0) {
+    matchSub.delete(matchId);
+  }
+}
+
+function cleanUpSocket(socket) {
+  if (!socket.subscribedMatchIds) {
+    return;
+  }
+
+  for (const matchId of socket.subscribedMatchIds) {
+    unSubscribeMatchId(matchId, socket);
+  }
+
+  socket.subscribedMatchIds.clear();
+  socket.subscribedMatchIds = null;
+}
+
+function broadcastToMatch(matchId, payload) {
+  const subs = matchSub.get(matchId);
+  if (!subs || subs.size === 0) {
+    return;
+  }
+  const message = JSON.stringify(payload);
+
+  for (const socket of subs) {
+    if (socket.readyState !== WebSocket.OPEN) {
+      continue;
+    }
+    socket.send(message);
+  }
+}
+
+function messageHandler(socket, data) {
+  try {
+    const message = JSON.parse(data.toString());
+    const messageType = message?.type ?? message?.payload;
+    const matchId = Number(message?.matchId);
+
+    if (!Number.isInteger(matchId)) {
+      sendJSON(socket, {
+        payload: {
+          success: false,
+          error: "matchId must be an integer",
+          data: null,
+        },
+      });
+      return;
+    }
+
+    socket.subscribedMatchIds = socket.subscribedMatchIds || new Set();
+
+    if (messageType === "subscribe" || messageType === "subscribe_match") {
+      subscribeMatchId(matchId, socket);
+      socket.subscribedMatchIds.add(matchId);
+
+      sendJSON(socket, {
+        payload: {
+          success: true,
+          error: null,
+          data: {
+            type: "subscribed_to_match",
+            matchId,
+          },
+        },
+      });
+      return;
+    }
+
+    if (messageType === "unsubscribe" || messageType === "unsubscribe_match") {
+      unSubscribeMatchId(matchId, socket);
+      socket.subscribedMatchIds.delete(matchId);
+
+      sendJSON(socket, {
+        payload: {
+          success: true,
+          error: null,
+          data: {
+            type: "unsubscribed_from_match",
+            matchId,
+          },
+        },
+      });
+      return;
+    }
+
+    sendJSON(socket, {
+      payload: {
+        success: false,
+        error: "Unsupported message type",
+        data: null,
+      },
+    });
+  } catch (e) {
+    sendJSON(socket, {
+      payload: {
+        success: false,
+        error: e?.message || "Invalid message format",
+        data: null,
+      },
+    });
+  }
+}
+
+// Match
 function sendJSON(socket, payload) {
   if (socket.readyState !== WebSocket.OPEN) {
     return;
@@ -37,20 +160,28 @@ export function attachWebsocketHandlers(server) {
 
     const clientId = randomUUID();
     socket.isAlive = true;
-
+    socket.subscribedMatchIds = new Set();
     console.log("New client connected to WebSocket: ", clientId);
 
     sendJSON(socket, {
       payload: {
-        type: "WebSocket_server_created",
-        id: clientId,
+        success: true,
+        error: null,
+        data: {
+          type: "WebSocket_server_created",
+          id: clientId,
+        },
       },
     });
 
     broadcastJSON(ws, {
       payload: {
-        type: "client_joined",
-        id: clientId,
+        success: true,
+        error: null,
+        data: {
+          type: "client_joined",
+          id: clientId,
+        },
       },
     });
 
@@ -59,14 +190,14 @@ export function attachWebsocketHandlers(server) {
       console.log(`Pong received from client ${clientId}`);
     });
 
-    // socket.on("message", (message) => {
-    //   console.log(`Received message from client ${clientId}:`, message.toString());
-    //   // Handle incoming messages from clients if needed
-    // });
+    socket.on("message", (message) => {
+      messageHandler(socket, message);
+    });
 
     socket.on("error", console.error);
 
     socket.on("close", () => {
+      cleanUpSocket(socket);
       console.log(`Client disconnected: ${clientId}`);
     });
   });
@@ -91,12 +222,38 @@ export function attachWebsocketHandlers(server) {
   });
 
   function broadcastMatchUpdate(match) {
-    broadcastJSON(ws, {
+    if (!match?.id) {
+      return;
+    }
+
+    broadcastToMatch(match.id, {
       payload: {
-        type: "match_created_at",
-        match: match,
+        success: true,
+        error: null,
+        data: {
+          type: "match_created_at",
+          match: match,
+        },
       },
     });
   }
-  return { broadcastMatchUpdate };
+
+  function broadcastCommentary(matchId, comment) {
+    if (!matchId || !comment) {
+      return;
+    }
+
+    broadcastToMatch(matchId, {
+      payload: {
+        success: true,
+        error: null,
+        data: {
+          type: "commentary_update",
+          commentary: comment,
+        },
+      },
+    });
+  }
+
+  return { broadcastMatchUpdate, broadcastCommentary };
 }

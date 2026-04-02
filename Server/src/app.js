@@ -35,7 +35,9 @@ app.get("/", (_req, res) => {
     payload: {
       success: true,
       error: null,
-      data: null,
+      data: {
+        message: "Welcome to Sportz real-time server",
+      },
     },
   });
 });
@@ -53,15 +55,19 @@ const { broadcastMatchUpdate, broadcastCommentary } =
 app.locals.broadcastMatchUpdate = broadcastMatchUpdate;
 app.locals.broadcastCommentary = broadcastCommentary;
 
-server.listen(PORT, HOST, () => {
-  const localBaseUrl =
-    HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
-  const baseUrl =
-    NODE_ENV === "development" ? localBaseUrl : configuredBaseUrl || localBaseUrl;
-  const wsBaseUrl = baseUrl.startsWith("https://")
-    ? baseUrl.replace("https://", "wss://")
-    : baseUrl.replace("http://", "ws://");
+const localBaseUrl =
+  HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+const baseUrl =
+  NODE_ENV === "development" ? localBaseUrl : configuredBaseUrl || localBaseUrl;
+const wsBaseUrl = baseUrl.startsWith("https://")
+  ? baseUrl.replace("https://", "wss://")
+  : baseUrl.replace("http://", "ws://");
 
-  console.log(`Server running on ${baseUrl}`);
-  console.log(`WebSocket server running on ${wsBaseUrl}/ws`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on ${baseUrl}`);
+    console.log(`WebSocket server running on ${wsBaseUrl}/ws`);
+  });
+}
+
+export default app;

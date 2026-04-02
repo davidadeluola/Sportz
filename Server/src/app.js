@@ -17,6 +17,10 @@ const app = express();
 // TODO: Move these to config file
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
+const NODE_ENV = (process.env.NODE_ENV || "development").toLowerCase();
+const configuredBaseUrl = (process.env.BASE_URL || process.env.BASE_URL_PROD || "")
+  .trim()
+  .replace(/\/+$/, "");
 
 app.use(cors());
 app.use(express.json());
@@ -50,8 +54,14 @@ app.locals.broadcastMatchUpdate = broadcastMatchUpdate;
 app.locals.broadcastCommentary = broadcastCommentary;
 
 server.listen(PORT, HOST, () => {
-  const baseUrl =
+  const localBaseUrl =
     HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
+  const baseUrl =
+    NODE_ENV === "development" ? localBaseUrl : configuredBaseUrl || localBaseUrl;
+  const wsBaseUrl = baseUrl.startsWith("https://")
+    ? baseUrl.replace("https://", "wss://")
+    : baseUrl.replace("http://", "ws://");
+
   console.log(`Server running on ${baseUrl}`);
-  console.log(`WebSocket server running on ws://${HOST}:${PORT}/ws`);
+  console.log(`WebSocket server running on ${wsBaseUrl}/ws`);
 });

@@ -31,15 +31,7 @@ app.use(arcjetSecurityMiddleware());
 
 // 🌐 Health interface: quick server status endpoint.
 app.get("/", (_req, res) => {
-  return res.status(200).json({
-    payload: {
-      success: true,
-      error: null,
-      data: {
-        message: "Welcome to Sportz real-time server",
-      },
-    },
-  });
+  return res.status(200).send("Welcome to Sportz real-time server");
 });
 
 // 🧩 API interface: feature routes.

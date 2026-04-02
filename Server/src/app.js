@@ -1,3 +1,6 @@
+import AgentAPI from "apminsight";
+AgentAPI.config();
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -41,7 +44,8 @@ app.use("/api/v1/matches/:id/commentary", commentaryRouter);
 const server = createServer(app);
 
 // 📡 Realtime interface: attach WebSocket handlers and expose broadcaster.
-const { broadcastMatchUpdate , broadcastCommentary} = attachWebsocketHandlers(server);
+const { broadcastMatchUpdate, broadcastCommentary } =
+  attachWebsocketHandlers(server);
 app.locals.broadcastMatchUpdate = broadcastMatchUpdate;
 app.locals.broadcastCommentary = broadcastCommentary;
 
